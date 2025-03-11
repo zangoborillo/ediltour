@@ -1,345 +1,625 @@
-// Inizializzazione storage
-let cronologia = JSON.parse(localStorage.getItem('cronologia')) || [];
-
-// Aggiungi event listeners per calcolare dinamicamente i consumi
-document.querySelectorAll('#apt1mese1, #apt1mese2').forEach(input => {
-  input.addEventListener('input', () => aggiornaConsumoApt(1));
-});
-
-document.querySelectorAll('#apt2mese1, #apt2mese2').forEach(input => {
-  input.addEventListener('input', () => aggiornaConsumoApt(2));
-});
-
-document.querySelectorAll('#apt3mese1, #apt3mese2').forEach(input => {
-  input.addEventListener('input', () => aggiornaConsumoApt(3));
-});
-
-// Funzione per aggiornare il consumo di un appartamento
-function aggiornaConsumoApt(apt) {
-  const iniziale = parseFloat(document.getElementById(`apt${apt}mese1`).value) || 0;
-  const finale = parseFloat(document.getElementById(`apt${apt}mese2`).value) || 0;
-  const consumo = Math.max(0, finale - iniziale);
-  document.getElementById(`consumoApt${apt}`).textContent = consumo;
-}
-
-// Funzione per calcolare i consumi di tutti gli appartamenti
-function calcolaConsumi() {
-  for (let apt = 1; apt <= 3; apt++) {
-    aggiornaConsumoApt(apt);
-  }
-  
-  // Passa automaticamente alla tab successiva
-  const componentsTab = new bootstrap.Tab(document.getElementById('components-tab'));
-  componentsTab.show();
-}
-
-// Funzione per verificare i componenti della bolletta
-function verificaComponenti() {
-  // Ottengo i valori dei componenti
-  const spesaEnergia = parseFloat(document.getElementById('spesaEnergia').value) || 0;
-  const scontoOfferta = parseFloat(document.getElementById('scontoOfferta').value) || 0;
-  const spesaTrasporto = parseFloat(document.getElementById('spesaTrasporto').value) || 0;
-  const oneriSistema = parseFloat(document.getElementById('oneriSistema').value) || 0;
-  const altrePartite = parseFloat(document.getElementById('altrePartite').value) || 0;
-  const imposte = parseFloat(document.getElementById('imposte').value) || 0;
-  const iva = parseFloat(document.getElementById('iva').value) || 0;
-  
-  // Calcolo la somma dei componenti
-  const sommaComponenti = spesaEnergia - scontoOfferta + spesaTrasporto + 
-                          oneriSistema + altrePartite + imposte + iva;
-  
-  // Ottengo il totale della bolletta
-  const totaleBolletta = parseFloat(document.getElementById('totaleBolletta').value) || 0;
-  
-  // Verifico se la somma dei componenti è uguale al totale della bolletta
-  const differenza = Math.abs(sommaComponenti - totaleBolletta);
-  const verificaTotale = document.getElementById('verificaTotale');
-  const btnCalcola = document.getElementById('btnCalcola');
-  
-  if (differenza > 0.01 && totaleBolletta > 0) {
-    verificaTotale.style.display = 'block';
-    verificaTotale.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> 
-                               Attenzione: La somma dei componenti (€ ${sommaComponenti.toFixed(2)}) 
-                               non corrisponde al totale della bolletta (€ ${totaleBolletta.toFixed(2)}). 
-                               Differenza: € ${differenza.toFixed(2)}`;
-    btnCalcola.disabled = true;
-  } else {
-    verificaTotale.style.display = 'none';
-    btnCalcola.disabled = false;
-  }
-}
-
-// Funzione per calcolare la ripartizione
-function calcola() {
-  // Ottengo i consumi degli appartamenti
-  const consumoApt1 = parseInt(document.getElementById('consumoApt1').textContent) || 0;
-  const consumoApt2 = parseInt(document.getElementById('consumoApt2').textContent) || 0;
-  const consumoApt3 = parseInt(document.getElementById('consumoApt3').textContent) || 0;
-  
-  // Calcolo il totale dei consumi
-  const totaleConsumi = consumoApt1 + consumoApt2 + consumoApt3;
-  
-  // Verifico che ci siano consumi
-  if (totaleConsumi === 0) {
-    alert('Non sono stati rilevati consumi. Inserisci le letture dei contascatti.');
-    return;
-  }
-  
-  // Calcolo le percentuali di consumo
-  const percentualeApt1 = (consumoApt1 / totaleConsumi) * 100;
-  const percentualeApt2 = (consumoApt2 / totaleConsumi) * 100;
-  const percentualeApt3 = (consumoApt3 / totaleConsumi) * 100;
-  
-  // Ottengo i componenti della bolletta
-  const totaleBolletta = parseFloat(document.getElementById('totaleBolletta').value) || 0;
-  const spesaEnergia = parseFloat(document.getElementById('spesaEnergia').value) || 0;
-  const scontoOfferta = parseFloat(document.getElementById('scontoOfferta').value) || 0;
-  const spesaTrasporto = parseFloat(document.getElementById('spesaTrasporto').value) || 0;
-  const oneriSistema = parseFloat(document.getElementById('oneriSistema').value) || 0;
-  const altrePartite = parseFloat(document.getElementById('altrePartite').value) || 0;
-  const imposte = parseFloat(document.getElementById('imposte').value) || 0;
-  const iva = parseFloat(document.getElementById('iva').value) || 0;
-  
-  // Calcolo l'importo per ciascun appartamento
-  const pagareApt1 = totaleBolletta * (percentualeApt1 / 100);
-  const pagareApt2 = totaleBolletta * (percentualeApt2 / 100);
-  const pagareApt3 = totaleBolletta * (percentualeApt3 / 100);
-  
-  // Calcolo il dettaglio delle componenti per ogni appartamento
-  const componenti = [
-    { nome: 'Spesa Materia Energia', totale: spesaEnergia },
-    { nome: 'Sconto Offerta', totale: -scontoOfferta },
-    { nome: 'Spesa Trasporto', totale: spesaTrasporto },
-    { nome: 'Oneri di Sistema', totale: oneriSistema },
-    { nome: 'Altre Partite', totale: altrePartite },
-    { nome: 'Imposte', totale: imposte },
-    { nome: 'IVA', totale: iva }
-  ];
-  
-  // Aggiorno il riepilogo dei risultati
-  const dataInizio = document.getElementById('dataPeriodoInizio').value;
-  const dataFine = document.getElementById('dataPeriodoFine').value;
-  document.getElementById('periodoRiferimento').textContent = `Dal ${formatDate(dataInizio)} al ${formatDate(dataFine)}`;
-  document.getElementById('totaleRiepilogo').textContent = `€ ${totaleBolletta.toFixed(2)}`;
-  
-  // Aggiorno i risultati per ogni appartamento
-  document.getElementById('consumoApt1Risultato').textContent = consumoApt1;
-  document.getElementById('percentualeApt1').textContent = `${percentualeApt1.toFixed(2)}%`;
-  document.getElementById('pagareApt1').textContent = `€ ${pagareApt1.toFixed(2)}`;
-  
-  document.getElementById('consumoApt2Risultato').textContent = consumoApt2;
-  document.getElementById('percentualeApt2').textContent = `${percentualeApt2.toFixed(2)}%`;
-  document.getElementById('pagareApt2').textContent = `€ ${pagareApt2.toFixed(2)}`;
-  
-  document.getElementById('consumoApt3Risultato').textContent = consumoApt3;
-  document.getElementById('percentualeApt3').textContent = `${percentualeApt3.toFixed(2)}%`;
-  document.getElementById('pagareApt3').textContent = `€ ${pagareApt3.toFixed(2)}`;
-  
-  // Aggiorno la tabella del dettaglio componenti
-  const dettaglioComponenti = document.getElementById('dettaglioComponenti');
-  dettaglioComponenti.innerHTML = '';
-  
-  componenti.forEach(componente => {
-    const componenteApt1 = componente.totale * (percentualeApt1 / 100);
-    const componenteApt2 = componente.totale * (percentualeApt2 / 100);
-    const componenteApt3 = componente.totale * (percentualeApt3 / 100);
-    
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${componente.nome}</td>
-      <td class="text-center">€ ${componente.totale.toFixed(2)}</td>
-      <td class="text-center">€ ${componenteApt1.toFixed(2)}</td>
-      <td class="text-center">€ ${componenteApt2.toFixed(2)}</td>
-      <td class="text-center">€ ${componenteApt3.toFixed(2)}</td>
-    `;
-    
-    dettaglioComponenti.appendChild(tr);
-  });
-  
-  // Aggiorno i totali della tabella
-  document.getElementById('totaleComplessivo').textContent = `€ ${totaleBolletta.toFixed(2)}`;
-  document.getElementById('totaleApt1').textContent = `€ ${pagareApt1.toFixed(2)}`;
-  document.getElementById('totaleApt2').textContent = `€ ${pagareApt2.toFixed(2)}`;
-  document.getElementById('totaleApt3').textContent = `€ ${pagareApt3.toFixed(2)}`;
-  
-  // Mostro i risultati
-  document.getElementById('noResults').style.display = 'none';
-  document.getElementById('risultatoContainer').style.display = 'block';
-  
-  // Passo alla tab dei risultati
-  const resultsTab = new bootstrap.Tab(document.getElementById('results-tab'));
-  resultsTab.show();
-  
-  // Salvo nella cronologia
-  salvaInCronologia({
-    data: new Date().toISOString(),
-    periodo: `${formatDate(dataInizio)} - ${formatDate(dataFine)}`,
-    totale: totaleBolletta,
-    apt1: pagareApt1,
-    apt2: pagareApt2,
-    apt3: pagareApt3,
-    dettaglio: {
-      consumo: {
-        apt1: consumoApt1,
-        apt2: consumoApt2,
-        apt3: consumoApt3
-      },
-      percentuali: {
-        apt1: percentualeApt1,
-        apt2: percentualeApt2,
-        apt3: percentualeApt3
-      },
-      componenti: componenti
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestione Bollette Condominio</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-  });
-}
+    .card {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      border: none;
+    }
+    .header-card {
+      background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+      color: white;
+      border-radius: 10px 10px 0 0;
+      padding: 20px;
+    }
+    .nav-tabs .nav-link {
+      border: none;
+      color: #495057;
+      font-weight: 600;
+      padding: 12px 20px;
+      border-radius: 0;
+      transition: all 0.3s;
+    }
+    .nav-tabs .nav-link.active {
+      background-color: #fff;
+      color: #4b6cb7;
+      border-bottom: 3px solid #4b6cb7;
+    }
+    .tab-content {
+      padding: 25px;
+      background-color: #fff;
+      border-radius: 0 0 10px 10px;
+    }
+    .input-group-text {
+      background-color: #4b6cb7;
+      color: white;
+      border: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+      border: none;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 10px 20px;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    }
+    .list-group-item {
+      border-left: none;
+      border-right: none;
+      padding: 12px 20px;
+    }
+    .list-group-item:first-child {
+      border-top: none;
+    }
+    .badge {
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: 20px;
+    }
+    .form-control {
+      border-radius: 8px;
+      padding: 12px 15px;
+      border: 1px solid #ced4da;
+    }
+    .form-control:focus {
+      box-shadow: 0 0 0 3px rgba(75, 108, 183, 0.25);
+      border-color: #4b6cb7;
+    }
+    .form-label {
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 8px;
+    }
+    .alert {
+      border-radius: 10px;
+      padding: 15px 20px;
+    }
+    .loading-spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #4b6cb7;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .result-card {
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 20px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+    }
+    .expense-item {
+      transition: all 0.3s;
+    }
+    .expense-item:hover {
+      background-color: #f8f9fa;
+    }
+    .delete-btn {
+      color: #dc3545;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .delete-btn:hover {
+      transform: scale(1.2);
+    }
+    .component-value {
+      border-left: 3px solid #4b6cb7;
+      padding-left: 15px;
+    }
+    .date-badge {
+      background-color: #e9ecef;
+      color: #495057;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+    }
+    @media (max-width: 768px) {
+      .row {
+        margin-bottom: 0 !important;
+      }
+      .col-md-6, .col-md-4 {
+        margin-bottom: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <div class="card mb-4">
+      <div class="header-card mb-0">
+        <h2 class="text-center mb-0">
+          <i class="fas fa-bolt me-2"></i> Sistema di Gestione Bollette Condominio
+        </h2>
+      </div>
+      
+      <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="input-tab" data-bs-toggle="tab" data-bs-target="#input-tab-pane" type="button" role="tab">
+            <i class="fas fa-pen-to-square me-2"></i>Inserimento Dati
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="components-tab" data-bs-toggle="tab" data-bs-target="#components-tab-pane" type="button" role="tab">
+            <i class="fas fa-file-invoice-dollar me-2"></i>Componenti Bolletta
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-tab-pane" type="button" role="tab">
+            <i class="fas fa-chart-pie me-2"></i>Risultati
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-tab-pane" type="button" role="tab">
+            <i class="fas fa-history me-2"></i>Cronologia
+          </button>
+        </li>
+      </ul>
+      
+      <div class="tab-content" id="myTabContent">
+        <!-- Tab Inserimento Dati -->
+        <div class="tab-pane fade show active" id="input-tab-pane" role="tabpanel" tabindex="0">
+          <div class="alert alert-info" role="alert">
+            <i class="fas fa-info-circle me-2"></i> Inserisci le letture dei contascatti per ogni appartamento all'inizio e alla fine del periodo.
+          </div>
+          
+          <h5 class="mb-4 border-bottom pb-2">
+            <i class="fas fa-calendar-alt me-2"></i> Periodo di riferimento
+          </h5>
+          
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <label for="dataPeriodoInizio" class="form-label">Data inizio periodo</label>
+              <input type="date" class="form-control" id="dataPeriodoInizio">
+            </div>
+            <div class="col-md-6">
+              <label for="dataPeriodoFine" class="form-label">Data fine periodo</label>
+              <input type="date" class="form-control" id="dataPeriodoFine">
+            </div>
+          </div>
+          
+          <h5 class="mb-4 mt-4 border-bottom pb-2">
+            <i class="fas fa-tachometer-alt me-2"></i> Letture Contascatti
+          </h5>
+          
+          <div class="row mb-4">
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                  <i class="fas fa-home me-2"></i> Appartamento 1
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="apt1mese1" class="form-label">Lettura Iniziale</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-play"></i></span>
+                      <input type="number" class="form-control" id="apt1mese1" placeholder="0">
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="apt1mese2" class="form-label">Lettura Finale</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-flag-checkered"></i></span>
+                      <input type="number" class="form-control" id="apt1mese2" placeholder="0">
+                    </div>
+                  </div>
+                  <div class="mt-3 bg-light p-2 rounded">
+                    Consumo: <span id="consumoApt1">0</span> scatti
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                  <i class="fas fa-home me-2"></i> Appartamento 2
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="apt2mese1" class="form-label">Lettura Iniziale</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-play"></i></span>
+                      <input type="number" class="form-control" id="apt2mese1" placeholder="0">
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="apt2mese2" class="form-label">Lettura Finale</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-flag-checkered"></i></span>
+                      <input type="number" class="form-control" id="apt2mese2" placeholder="0">
+                    </div>
+                  </div>
+                  <div class="mt-3 bg-light p-2 rounded">
+                    Consumo: <span id="consumoApt2">0</span> scatti
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-4">
+              <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                  <i class="fas fa-home me-2"></i> Appartamento 3
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="apt3mese1" class="form-label">Lettura Iniziale</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-play"></i></span>
+                      <input type="number" class="form-control" id="apt3mese1" placeholder="0">
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="apt3mese2" class="form-label">Lettura Finale</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-flag-checkered"></i></span>
+                      <input type="number" class="form-control" id="apt3mese2" placeholder="0">
+                    </div>
+                  </div>
+                  <div class="mt-3 bg-light p-2 rounded">
+                    Consumo: <span id="consumoApt3">0</span> scatti
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button class="btn btn-primary" onclick="calcolaConsumi()">
+              <i class="fas fa-calculator me-2"></i> Calcola Consumi
+            </button>
+          </div>
+        </div>
+        
+        <!-- Tab Componenti Bolletta -->
+        <div class="tab-pane fade" id="components-tab-pane" role="tabpanel" tabindex="0">
+          <div class="alert alert-info" role="alert">
+            <i class="fas fa-info-circle me-2"></i> Inserisci tutte le componenti della bolletta per una ripartizione dettagliata.
+          </div>
+          
+          <h5 class="mb-4 border-bottom pb-2">
+            <i class="fas fa-file-invoice me-2"></i> Dettaglio Componenti Bolletta
+          </h5>
+          
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <label for="kwhTotali" class="form-label">KWh Totali Consumati</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-bolt"></i></span>
+                <input type="number" class="form-control" id="kwhTotali" placeholder="0" step="0.01">
+                <span class="input-group-text">kWh</span>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="totaleBolletta" class="form-label">Importo Totale Bolletta</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="totaleBolletta" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="spesaEnergia" class="form-label">Spesa per la Materia Energia</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="spesaEnergia" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="scontoOfferta" class="form-label">Sconto Offerta (se previsto)</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="scontoOfferta" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="spesaTrasporto" class="form-label">Spesa per il Trasporto</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="spesaTrasporto" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="oneriSistema" class="form-label">Spesa per Oneri di Sistema</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="oneriSistema" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <label for="altrePartite" class="form-label">Altre Partite</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="altrePartite" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+            
+            <div class="col-md-4">
+              <label for="imposte" class="form-label">Imposte</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="imposte" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+            
+            <div class="col-md-4">
+              <label for="iva" class="form-label">IVA</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text"><i class="fas fa-euro-sign"></i></span>
+                <input type="number" class="form-control" id="iva" placeholder="0.00" step="0.01">
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-warning mt-4" id="verificaTotale" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-2"></i> Attenzione: La somma delle componenti non corrisponde al totale della bolletta.
+          </div>
+          
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button class="btn btn-primary" onclick="verificaComponenti()">
+              <i class="fas fa-check-double me-2"></i> Verifica Componenti
+            </button>
+            <button class="btn btn-success" id="btnCalcola" onclick="calcola()" disabled>
+              <i class="fas fa-calculator me-2"></i> Calcola Ripartizione
+            </button>
+          </div>
+        </div>
+        
+        <!-- Tab Risultati -->
+        <div class="tab-pane fade" id="results-tab-pane" role="tabpanel" tabindex="0">
+          <div class="alert alert-warning" id="noResults" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i> Nessun risultato disponibile. Calcola prima una ripartizione.
+          </div>
+          
+          <div id="risultatoContainer" style="display: none;">
+            <h5 class="mb-4 border-bottom pb-2">
+              <i class="fas fa-chart-bar me-2"></i> Riepilogo Consumi
+            </h5>
+            
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header bg-primary text-white">
+                    Periodo di Riferimento
+                  </div>
+                  <div class="card-body">
+                    <p class="card-text" id="periodoRiferimento">-</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header bg-success text-white">
+                    Totale Bolletta
+                  </div>
+                  <div class="card-body">
+                    <h3 class="card-text" id="totaleRiepilogo">€ 0.00</h3>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row mb-4">
+              <div class="col-md-4">
+                <div class="card text-center mb-3 border-primary">
+                  <div class="card-header bg-primary text-white">
+                    Appartamento 1
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-2">Consumo</div>
+                    <h4 id="consumoApt1Risultato">0</h4>
+                    <div class="badge bg-primary mb-2" id="percentualeApt1">0%</div>
+                    <hr>
+                    <div class="mb-2">Da Pagare</div>
+                    <h3 id="pagareApt1">€ 0.00</h3>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card text-center mb-3 border-success">
+                  <div class="card-header bg-success text-white">
+                    Appartamento 2
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-2">Consumo</div>
+                    <h4 id="consumoApt2Risultato">0</h4>
+                    <div class="badge bg-success mb-2" id="percentualeApt2">0%</div>
+                    <hr>
+                    <div class="mb-2">Da Pagare</div>
+                    <h3 id="pagareApt2">€ 0.00</h3>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card text-center mb-3 border-info">
+                  <div class="card-header bg-info text-white">
+                    Appartamento 3
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-2">Consumo</div>
+                    <h4 id="consumoApt3Risultato">0</h4>
+                    <div class="badge bg-info mb-2" id="percentualeApt3">0%</div>
+                    <hr>
+                    <div class="mb-2">Da Pagare</div>
+                    <h3 id="pagareApt3">€ 0.00</h3>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <h5 class="mb-4 mt-5 border-bottom pb-2">
+              <i class="fas fa-table me-2"></i> Dettaglio Ripartizione Componenti
+            </h5>
+            
+            <div class="table-responsive">
+              <table class="table table-hover table-bordered">
+                <thead class="table-light">
+                  <tr>
+                    <th>Componente</th>
+                    <th class="text-center">Totale</th>
+                    <th class="text-center">Appartamento 1</th>
+                    <th class="text-center">Appartamento 2</th>
+                    <th class="text-center">Appartamento 3</th>
+                  </tr>
+                </thead>
+                <tbody id="dettaglioComponenti">
+                  <!-- Riempito via JavaScript -->
+                </tbody>
+                <tfoot class="table-light">
+                  <tr>
+                    <th>TOTALE</th>
+                    <th class="text-center" id="totaleComplessivo">€ 0.00</th>
+                    <th class="text-center" id="totaleApt1">€ 0.00</th>
+                    <th class="text-center" id="totaleApt2">€ 0.00</th>
+                    <th class="text-center" id="totaleApt3">€ 0.00</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+              <button class="btn btn-primary" onclick="stampaRisultati()">
+                <i class="fas fa-print me-2"></i> Stampa Risultati
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Tab Cronologia -->
+        <div class="tab-pane fade" id="history-tab-pane" role="tabpanel" tabindex="0">
+          <div id="noCronologia" class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> Nessuna ripartizione nella cronologia.
+          </div>
+          
+          <div id="cronologiaContainer">
+            <h5 class="mb-3 border-bottom pb-2">
+              <i class="fas fa-history me-2"></i> Cronologia Ripartizioni
+            </h5>
+            
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th>Data</th>
+                    <th>Periodo</th>
+                    <th class="text-center">Totale</th>
+                    <th class="text-center">App. 1</th>
+                    <th class="text-center">App. 2</th>
+                    <th class="text-center">App. 3</th>
+                    <th class="text-center">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody id="cronologiaBody">
+                  <!-- Riempito via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+              <button class="btn btn-danger" onclick="svuotaCronologia()">
+                <i class="fas fa-trash me-2"></i> Svuota Cronologia
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-// Funzione per salvare nella cronologia
-function salvaInCronologia(ripartizione) {
-  cronologia.unshift(ripartizione); // Aggiungi all'inizio dell'array
-  localStorage.setItem('cronologia', JSON.stringify(cronologia));
-  aggiornaCronologiaUI();
-}
-
-// Funzione per aggiornare la UI della cronologia
-function aggiornaCronologiaUI() {
-  const cronologiaBody = document.getElementById('cronologiaBody');
-  const noCronologia = document.getElementById('noCronologia');
-  const cronologiaContainer = document.getElementById('cronologiaContainer');
+  <!-- Bootstrap JS Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   
-  if (cronologia.length === 0) {
-    noCronologia.style.display = 'block';
-    cronologiaContainer.style.display = 'none';
-    return;
-  }
-  
-  noCronologia.style.display = 'none';
-  cronologiaContainer.style.display = 'block';
-  
-  cronologiaBody.innerHTML = '';
-  
-  cronologia.forEach((item, index) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${formatDate(item.data)}</td>
-      <td>${item.periodo}</td>
-      <td class="text-center">€ ${item.totale.toFixed(2)}</td>
-      <td class="text-center">€ ${item.apt1.toFixed(2)}</td>
-      <td class="text-center">€ ${item.apt2.toFixed(2)}</td>
-      <td class="text-center">€ ${item.apt3.toFixed(2)}</td>
-      <td class="text-center">
-        <button class="btn btn-sm btn-info me-2" onclick="visualizzaDettaglio(${index})">
-          <i class="fas fa-eye"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="rimuoviDaCronologia(${index})">
-          <i class="fas fa-trash"></i>
-        </button>
-      </td>
-    `;
+  <script>
+    // Inizializzazione storage
+    let cronologia = JSON.parse(localStorage.getItem('cronologia')) || [];
     
-    cronologiaBody.appendChild(tr);
-  });
-}
-
-// Funzione per visualizzare il dettaglio di una ripartizione dalla cronologia
-function visualizzaDettaglio(index) {
-  const item = cronologia[index];
-  
-  // Ripopolo i risultati con i dati della cronologia
-  document.getElementById('consumoApt1Risultato').textContent = item.dettaglio.consumo.apt1;
-  document.getElementById('percentualeApt1').textContent = `${item.dettaglio.percentuali.apt1.toFixed(2)}%`;
-  document.getElementById('pagareApt1').textContent = `€ ${item.apt1.toFixed(2)}`;
-  
-  document.getElementById('consumoApt2Risultato').textContent = item.dettaglio.consumo.apt2;
-  document.getElementById('percentualeApt2').textContent = `${item.dettaglio.percentuali.apt2.toFixed(2)}%`;
-  document.getElementById('pagareApt2').textContent = `€ ${item.apt2.toFixed(2)}`;
-  
-  document.getElementById('consumoApt3Risultato').textContent = item.dettaglio.consumo.apt3;
-  document.getElementById('percentualeApt3').textContent = `${item.dettaglio.percentuali.apt3.toFixed(2)}%`;
-  document.getElementById('pagareApt3').textContent = `€ ${item.apt3.toFixed(2)}`;
-  
-  document.getElementById('periodoRiferimento').textContent = item.periodo;
-  document.getElementById('totaleRiepilogo').textContent = `€ ${item.totale.toFixed(2)}`;
-  
-  // Aggiorno la tabella delle componenti
-  const dettaglioComponenti = document.getElementById('dettaglioComponenti');
-  dettaglioComponenti.innerHTML = '';
-  
-  item.dettaglio.componenti.forEach(componente => {
-    const componenteApt1 = componente.totale * (item.dettaglio.percentuali.apt1 / 100);
-    const componenteApt2 = componente.totale * (item.dettaglio.percentuali.apt2 / 100);
-    const componenteApt3 = componente.totale * (item.dettaglio.percentuali.apt3 / 100);
+    // Aggiungi event listeners per calcolare dinamicamente i consumi
+    document.querySelectorAll('#apt1mese1, #apt1mese2').forEach(input => {
+      input.addEventListener('input', () => aggiornaConsumoApt(1));
+    });
     
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${componente.nome}</td>
-      <td class="text-center">€ ${componente.totale.toFixed(2)}</td>
-      <td class="text-center">€ ${componenteApt1.toFixed(2)}</td>
-      <td class="text-center">€ ${componenteApt2.toFixed(2)}</td>
-      <td class="text-center">€ ${componenteApt3.toFixed(2)}</td>
-    `;
+    document.querySelectorAll('#apt2mese1, #apt2mese2').forEach(input => {
+      input.addEventListener('input', () => aggiornaConsumoApt(2));
+    });
     
-    dettaglioComponenti.appendChild(tr);
-  });
-  
-  // Aggiorno i totali
-  document.getElementById('totaleComplessivo').textContent = `€ ${item.totale.toFixed(2)}`;
-  document.getElementById('totaleApt1').textContent = `€ ${item.apt1.toFixed(2)}`;
-  document.getElementById('totaleApt2').textContent = `€ ${item.apt2.toFixed(2)}`;
-  document.getElementById('totaleApt3').textContent = `€ ${item.apt3.toFixed(2)}`;
-  
-  // Mostro i risultati
-  document.getElementById('noResults').style.display = 'none';
-  document.getElementById('risultatoContainer').style.display = 'block';
-  
-  // Passo alla tab dei risultati
-  const resultsTab = new bootstrap.Tab(document.getElementById('results-tab'));
-  resultsTab.show();
-}
-
-// Funzione per rimuovere dalla cronologia
-function rimuoviDaCronologia(index) {
-  if (confirm('Sei sicuro di voler rimuovere questa ripartizione dalla cronologia?')) {
-    cronologia.splice(index, 1);
-    localStorage.setItem('cronologia', JSON.stringify(cronologia));
-    aggiornaCronologiaUI();
-  }
-}
-
-// Funzione per svuotare la cronologia
-function svuotaCronologia() {
-  if (confirm('Sei sicuro di voler eliminare tutta la cronologia? Questa azione non può essere annullata.')) {
-    cronologia = [];
-    localStorage.setItem('cronologia', JSON.stringify(cronologia));
-    aggiornaCronologiaUI();
-  }
-}
-
-// Funzione per stampare i risultati
-function stampaRisultati() {
-  window.print();
-}
-
-// Funzione ausiliaria per formattare le date
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  
-  // Se è in formato ISO
-  if (dateString.includes('T')) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('it-IT');
-  }
-  
-  // Se è già in formato YYYY-MM-DD
-  const parts = dateString.split('-');
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  }
-  
-  return dateString;
-}
-
-// Inizializzo la UI della cronologia all'avvio
-document.addEventListener('DOMContentLoaded', () => {
-  aggiornaCronologiaUI();
-});
+    document.querySelectorAll('#apt3mese1, #apt3mese2').forEach(input => {
+      input.addEventListener('input', () => aggiornaConsumoApt(3));
+    });
+    
+    // Funzione per aggiornare il consumo di un appartamento
+    function aggiornaConsumoApt(apt) {
+      const iniziale = parseFloat(document.getElementById(`apt${apt}mese1`).value) || 0;
+      const finale = parseFloat(document.getElementById(`apt${apt}mese2`).value) || 0;
+      const consumo = Math.max(0, finale - iniziale);
+      document.getElementById(`consumoApt${apt}`).textContent = consumo;
+    }
+    
+    // Funzione per calcolare i consumi di tutti gli appartamenti
+    function calcolaConsumi() {
+      for (let apt = 1; apt <= 3; apt++) {
+        aggiornaConsumoApt(apt);
+      }
+      
+      // Passa automaticamente alla tab successiva
+      const componentsTab = new bootstrap.Tab(document.getElementById('components-tab'));
+      componentsTab.show();
+    }
+    
+    // Funzione per verificare i componenti della bolletta
+    function verificaComponenti() {
+      // Ottengo i valori dei componenti
+      const spesaEnergia = parseFloat(document.getElementById('spesaEnergia').value) || 0;
+      const scontoOfferta = parseFloat(document.getElementById('scontoOfferta').value) || 0;
+      const spesaTrasporto = parseFloat(document.getElementById('spesaTrasporto').value) || 0;
+      const oneriSistema = parseFloat(document.getElementById('oneriSistema').value) || 0;
+      const altrePartite = parseFloat(document.getElementById('altrePartite').value) || 0;
+      const imposte = parseFloat(document.getElementById('imposte').value) || 0;
+      const iva = parseFloat(document.getElementById('iva').value) || 0;
+      
+      // Calcolo la somma dei componenti
+      const sommaComponenti = spesaEnergia - scontoOfferta + spesaTrasporto + 
+                              oneriSistema + altrePartite + imposte + iva;
+      
+      // Ottengo il totale della bolletta
+      const totaleBolletta = parseFloat(document.getElementById('totaleBolletta').value) || 0;
+      
+      // Verifico se la somma dei componenti è uguale al totale della bolletta
+      const differenza = Math.abs(sommaComponenti - totaleBolletta);
+      const verificaTotale = document.getElementById('verificaTotale');
+      const btnCalcola = document.getElementById('btnCalcola');
+      
+      if (differenza > 0.01 && totaleBolletta > 0) {
+        verificaTotale.style.display = 'block';
+        verificaTotale.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> 
+                                   Attenzione: La som
