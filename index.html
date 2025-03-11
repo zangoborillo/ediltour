@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calcolo Bolletta Condominio</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
+  <h2 class="mb-3">Gestione Bollette Condominio</h2>
+
+  <div class="mb-3">
+    <label>Scatti Appartamento 1:</label>
+    <input type="number" id="apt1" class="form-control">
+  </div>
+  <div class="mb-3">
+    <label>Scatti Appartamento 2:</label>
+    <input type="number" id="apt2" class="form-control">
+  </div>
+  <div class="mb-3">
+    <label>Scatti Appartamento 3:</label>
+    <input type="number" id="apt3" class="form-control">
+  </div>
+
+  <h4>Dettagli Bolletta</h4>
+  <input class="form-control mb-2" id="totaleBolletta" placeholder="Costo totale bolletta">
+  <button class="btn btn-primary" onclick="calcola()">Calcola Ripartizione</button>
+
+  <div id="risultati" class="mt-4"></div>
+  <div id="cronologia" class="mt-4"></div>
+
+<script>
+let cronologia = JSON.parse(localStorage.getItem('cronologiaBollette')) || [];
+
+function calcola() {
+  let apt1 = +document.getElementById('apt1').value;
+  let apt2 = +document.getElementById('apt2').value;
+  let apt3 = +document.getElementById('apt3').value;
+  let totale = +document.getElementById('totaleBolletta').value;
+
+  let consumoTotale = apt1 + apt2 + apt3;
+
+  if (consumoTotale <= 0) {
+    alert("Inserisci valori validi per gli scatti.");
+    return;
+  }
+
+  let congruita = apt1 + apt2 + apt3;
+  if (congruita !== consumoTotale) {
+    alert("Errore congruità! Verifica gli scatti.");
+    return;
+  }
+
+  let costoApt1 = (apt1 / consumoTotale * totale).toFixed(2);
+  let costoApt2 = (apt2 / consumoTotale * totale).toFixed(2);
+  let costoApt3 = (apt3 / consumoTotale * totale).toFixed(2);
+
+  let risultato = `<h5>Ripartizione Spese:</h5>
+  <ul class="list-group">
+    <li class="list-group-item">Appartamento 1: €${costoApt1}</li>
+    <li class="list-group-item">Appartamento 2: €${costoApt2}</li>
+    <li class="list-group-item">Appartamento 3: €${costoApt3}</li>
+  </ul>
+  <button class="btn btn-success mt-2" onclick="salvaCronologia(${apt1},${apt2},${apt3},${totale},${costoApt1},${costoApt2},${costoApt3})">Salva Bolletta</button>
+  <button class="btn btn-secondary mt-2" onclick="stampa()">Stampa Report</button>`;
+
+  document.getElementById('risultati').innerHTML = risultato;
+}
+
+function salvaCronologia(a1,a2,a3,tot,c1,c2,c3) {
+  let data = new Date().toLocaleString();
+  cronologia.push({data, a1, a2, a3, tot, c1, c2, c3});
+  localStorage.setItem('cronologiaBollette', JSON.stringify(cronologia));
+  mostraCronologia();
+}
+
+function mostraCronologia() {
+  let html = '<h5>Cronologia Bollette:</h5><ul class="list-group">';
+  cronologia.forEach((item, index) => {
+    html += `<li class="list-group-item">${item.data}: Tot €${item.tot}, A1 €${item.c1}, A2 €${item.c2}, A3 €${item.c3}</li>`;
+  });
+  html += '</ul>';
+  document.getElementById('cronologia').innerHTML = html;
+}
+
+function stampa() {
+  let contenuto = document.getElementById('risultati').innerHTML;
+  let originale = document.body.innerHTML;
+  document.body.innerHTML = contenuto;
+  window.print();
+  document.body.innerHTML = originale;
+  mostraCronologia();
+}
+
+window.onload = mostraCronologia;
+</script>
+
+</body>
+</html>
