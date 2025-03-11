@@ -131,12 +131,55 @@
       border-radius: 20px;
       font-size: 0.85rem;
     }
+    .saved-data-card {
+      background-color: #e8f4f8;
+      border-left: 5px solid #4b6cb7;
+    }
+    .sync-buttons {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    .floating-action-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      box-shadow: 0 6px 10px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    #syncStatus {
+      margin-top: 10px;
+      font-size: 12px;
+      text-align: center;
+    }
+    .letture-row {
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      transition: all 0.3s;
+    }
+    .letture-row:hover {
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
     @media (max-width: 768px) {
       .row {
         margin-bottom: 0 !important;
       }
       .col-md-6, .col-md-4 {
         margin-bottom: 15px;
+      }
+      .sync-buttons {
+        bottom: 10px;
+        right: 10px;
+      }
+      .floating-action-button {
+        width: 50px;
+        height: 50px;
       }
     }
   </style>
@@ -148,6 +191,12 @@
         <h2 class="text-center mb-0">
           <i class="fas fa-bolt me-2"></i> Sistema di Gestione Bollette Condominio
         </h2>
+        <p class="text-center mb-0 mt-2" id="syncStatusHeader">
+          <span class="badge bg-light text-dark">
+            <i class="fas fa-circle me-1" id="syncIcon"></i> 
+            <span id="syncText">Non sincronizzato</span>
+          </span>
+        </p>
       </div>
       
       <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -171,6 +220,11 @@
             <i class="fas fa-history me-2"></i>Cronologia
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-tab-pane" type="button" role="tab">
+            <i class="fas fa-cog me-2"></i>Impostazioni
+          </button>
+        </li>
       </ul>
       
       <div class="tab-content" id="myTabContent">
@@ -178,6 +232,18 @@
         <div class="tab-pane fade show active" id="input-tab-pane" role="tabpanel" tabindex="0">
           <div class="alert alert-info" role="alert">
             <i class="fas fa-info-circle me-2"></i> Inserisci le letture dei contascatti per ogni appartamento all'inizio e alla fine del periodo.
+          </div>
+          
+          <div id="datiSalvati" class="alert alert-success saved-data-card" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 class="mb-1"><i class="fas fa-save me-2"></i> Dati salvati</h5>
+                <p class="mb-0" id="ultimoSalvataggio"></p>
+              </div>
+              <button class="btn btn-sm btn-outline-success" id="btnCaricaDati">
+                <i class="fas fa-upload me-1"></i> Carica
+              </button>
+            </div>
           </div>
           
           <h5 class="mb-4 border-bottom pb-2">
@@ -283,9 +349,20 @@
           </div>
           
           <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button class="btn btn-success me-2" id="btnSalvaLetture">
+              <i class="fas fa-save me-2"></i> Salva Letture
+            </button>
             <button class="btn btn-primary" id="btnCalcolaConsumi">
               <i class="fas fa-calculator me-2"></i> Calcola Consumi
             </button>
+          </div>
+          
+          <!-- Ultime letture salvate -->
+          <div class="mt-4" id="lettureStorico" style="display: none;">
+            <h5 class="mb-3 border-bottom pb-2">
+              <i class="fas fa-history me-2"></i> Ultime Letture Salvate
+            </h5>
+            <div id="lettureStoricoCnt"></div>
           </div>
         </div>
         
@@ -547,14 +624,119 @@
             </div>
             
             <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+              <button class="btn btn-primary me-2" id="btnEsportaDati">
+                <i class="fas fa-file-export me-2"></i> Esporta Dati
+              </button>
               <button class="btn btn-danger" id="btnSvuotaCronologia">
                 <i class="fas fa-trash me-2"></i> Svuota Cronologia
               </button>
             </div>
           </div>
         </div>
+        
+        <!-- Tab Impostazioni -->
+        <div class="tab-pane fade" id="settings-tab-pane" role="tabpanel" tabindex="0">
+          <h5 class="mb-4 border-bottom pb-2">
+            <i class="fas fa-cog me-2"></i> Impostazioni
+          </h5>
+          
+          <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+              <i class="fas fa-sync me-2"></i> Sincronizzazione e Backup
+            </div>
+            <div class="card-body">
+              <p class="card-text">
+                Puoi esportare e importare i tuoi dati per trasferirli tra dispositivi o creare backup.
+              </p>
+              
+              <h6 class="mt-4 mb-3"><i class="fas fa-file-export me-2"></i> Esporta Dati</h6>
+              <p>Scarica tutti i dati dell'applicazione in un file JSON che potrai importare in seguito.</p>
+              <button class="btn btn-primary" id="btnEsportaImpostazioni">
+                <i class="fas fa-download me-2"></i> Esporta tutti i dati
+              </button>
+              
+              <h6 class="mt-4 mb-3"><i class="fas fa-file-import me-2"></i> Importa Dati</h6>
+              <p>Carica un file JSON esportato in precedenza per ripristinare i tuoi dati.</p>
+              <div class="input-group mb-3">
+                <input type="file" class="form-control" id="fileImporta" accept=".json">
+                <button class="btn btn-primary" id="btnImportaDati">
+                  <i class="fas fa-upload me-2"></i> Importa
+                </button>
+              </div>
+              
+              <div class="alert alert-success mt-3" id="importSuccesso" style="display: none;">
+                <i class="fas fa-check-circle me-2"></i> Dati importati con successo!
+              </div>
+              
+              <div class="alert alert-danger mt-3" id="importErrore" style="display: none;">
+                <i class="fas fa-exclamation-circle me-2"></i> <span id="importErroreMessaggio"></span>
+              </div>
+              
+              <h6 class="mt-4 mb-3"><i class="fas fa-cloud me-2"></i> Sincronizzazione Cloud</h6>
+              <p>Utilizza un codice di sincronizzazione per accedere ai tuoi dati da qualsiasi dispositivo.</p>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="codiceSincronizzazione" placeholder="Inserisci un codice univoco">
+                    <button class="btn btn-success" id="btnGeneraCodice">
+                      <i class="fas fa-key me-2"></i> Genera
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <button class="btn btn-primary w-100" id="btnSincronizza">
+                    <i class="fas fa-cloud-upload-alt me-2"></i> Sincronizza
+                  </button>
+                </div>
+              </div>
+              
+              <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle me-2"></i> Il codice di sincronizzazione è la chiave per accedere ai tuoi dati. 
+                Conservalo in un luogo sicuro e utilizzalo su tutti i dispositivi dove vuoi sincronizzare i dati.
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header bg-info text-white">
+              <i class="fas fa-eraser me-2"></i> Gestione Dati
+            </div>
+            <div class="card-body">
+              <p class="card-text">
+                Puoi azzerare i dati dell'applicazione o rimuovere solo parti specifiche.
+              </p>
+              
+              <div class="row mt-3">
+                <div class="col-md-6">
+                  <button class="btn btn-warning w-100 mb-3" id="btnSvuotaLetture">
+                    <i class="fas fa-trash-alt me-2"></i> Elimina Letture Salvate
+                  </button>
+                </div>
+                <div class="col-md-6">
+                  <button class="btn btn-danger w-100 mb-3" id="btnResetTutto">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Reset Completo
+                  </button>
+                </div>
+              </div>
+              
+              <div class="alert alert-warning mt-3">
+                <i class="fas fa-exclamation-triangle me-2"></i> Attenzione: Le operazioni di reset sono irreversibili. 
+                Assicurati di aver creato un backup prima di procedere.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
+  
+  <!-- Pulsanti di sincronizzazione flottanti -->
+  <div class="sync-buttons">
+    <button class="btn btn-primary floating-action-button" id="btnSincronizzaFlottante" title="Sincronizza dati">
+      <i class="fas fa-cloud-upload-alt"></i>
+    </button>
+    <div id="syncStatus"></div>
   </div>
 
   <!-- Bootstrap JS Bundle with Popper -->
@@ -563,12 +745,19 @@
   <script>
     // Inizializzazione storage
     let cronologia = JSON.parse(localStorage.getItem('cronologia')) || [];
+    let lettureStorico = JSON.parse(localStorage.getItem('lettureStorico')) || [];
+    let ultimoSalvataggio = localStorage.getItem('ultimoSalvataggio') || null;
+    let codiceSincronizzazione = localStorage.getItem('codiceSincronizzazione') || '';
+    let ultimaSincronizzazione = localStorage.getItem('ultimaSincronizzazione') || null;
     
     // Variabili per memorizzare i dati dei consumi
     let consumoApt1 = 0;
     let consumoApt2 = 0;
     let consumoApt3 = 0;
     let consumoTotale = 0;
+    
+    // Variabile per il database cloud fittizio (simulato con localStorage)
+    const DB_CLOUD_KEY = 'bollette_cloud_';
     
     // Funzione per formattare importi in Euro
     function formatEuro(amount) {
@@ -580,6 +769,18 @@
       if (!dateString) return "-";
       const date = new Date(dateString);
       return date.toLocaleDateString('it-IT');
+    }
+    
+    // Funzione per formattare data e ora
+    function formatDateTime(dateString) {
+      if (!dateString) return "-";
+      const date = new Date(dateString);
+      return date.toLocaleDateString('it-IT') + ' ' + date.toLocaleTimeString('it-IT');
+    }
+    
+    // Funzione per generare un ID univoco
+    function generateUniqueId() {
+      return Date.now().toString(36) + Math.random().toString(36).substring(2);
     }
     
     // Aggiungi event listeners per calcolare dinamicamente i consumi
@@ -606,6 +807,202 @@
       if (apt === 1) consumoApt1 = consumo;
       if (apt === 2) consumoApt2 = consumo;
       if (apt === 3) consumoApt3 = consumo;
+    }
+    
+    // Funzione per salvare le letture correnti
+    function salvaLetture() {
+      const dataInizio = document.getElementById('dataPeriodoInizio').value;
+      const dataFine = document.getElementById('dataPeriodoFine').value;
+      const apt1mese1 = parseFloat(document.getElementById('apt1mese1').value) || 0;
+      const apt1mese2 = parseFloat(document.getElementById('apt1mese2').value) || 0;
+      const apt2mese1 = parseFloat(document.getElementById('apt2mese1').value) || 0;
+      const apt2mese2 = parseFloat(document.getElementById('apt2mese2').value) || 0;
+      const apt3mese1 = parseFloat(document.getElementById('apt3mese1').value) || 0;
+      const apt3mese2 = parseFloat(document.getElementById('apt3mese2').value) || 0;
+      
+      // Verifica che almeno un campo sia compilato
+      if (!apt1mese1 && !apt2mese1 && !apt3mese1 && !apt1mese2 && !apt2mese2 && !apt3mese2) {
+        alert("Inserisci almeno una lettura per salvare");
+        return;
+      }
+      
+      // Crea l'oggetto lettura
+      const lettura = {
+        id: generateUniqueId(),
+        dataSalvataggio: new Date().toISOString(),
+        dataInizio,
+        dataFine,
+        apt1: {
+          iniziale: apt1mese1,
+          finale: apt1mese2
+        },
+        apt2: {
+          iniziale: apt2mese1,
+          finale: apt2mese2
+        },
+        apt3: {
+          iniziale: apt3mese1,
+          finale: apt3mese2
+        }
+      };
+      
+      // Aggiungi al salvataggio
+      lettureStorico.unshift(lettura);
+      // Mantieni solo gli ultimi 10 salvataggi
+      if (lettureStorico.length > 10) {
+        lettureStorico = lettureStorico.slice(0, 10);
+      }
+      
+      // Salva nel localStorage
+      localStorage.setItem('lettureStorico', JSON.stringify(lettureStorico));
+      localStorage.setItem('ultimoSalvataggio', lettura.dataSalvataggio);
+      ultimoSalvataggio = lettura.dataSalvataggio;
+      
+      // Aggiorna UI
+      mostraUltimoSalvataggio();
+      aggiornaLettureStorico();
+      
+      alert("Letture salvate con successo!");
+      
+      // Sincronizza automaticamente se c'è un codice
+      if (codiceSincronizzazione) {
+        sincronizzaDati();
+      }
+    }
+    
+    // Funzione per caricare letture precedentemente salvate
+    function caricaLetture(lettura) {
+      if (!lettura) {
+        // Se non viene passata una lettura specifica, carica l'ultima
+        if (lettureStorico.length === 0) {
+          alert("Nessuna lettura salvata disponibile");
+          return;
+        }
+        lettura = lettureStorico[0];
+      }
+      
+      // Compila i campi
+      document.getElementById('dataPeriodoInizio').value = lettura.dataInizio || '';
+      document.getElementById('dataPeriodoFine').value = lettura.dataFine || '';
+      document.getElementById('apt1mese1').value = lettura.apt1.iniziale || '';
+      document.getElementById('apt1mese2').value = lettura.apt1.finale || '';
+      document.getElementById('apt2mese1').value = lettura.apt2.iniziale || '';
+      document.getElementById('apt2mese2').value = lettura.apt2.finale || '';
+      document.getElementById('apt3mese1').value = lettura.apt3.iniziale || '';
+      document.getElementById('apt3mese2').value = lettura.apt3.finale || '';
+      
+      // Aggiorna i calcoli
+      aggiornaConsumoApt(1);
+      aggiornaConsumoApt(2);
+      aggiornaConsumoApt(3);
+      
+      alert("Dati caricati con successo!");
+    }
+    
+    // Funzione per aggiornare la UI con l'ultimo salvataggio
+    function mostraUltimoSalvataggio() {
+      const datiSalvati = document.getElementById('datiSalvati');
+      const ultimoSalvataggioDom = document.getElementById('ultimoSalvataggio');
+      
+      if (ultimoSalvataggio) {
+        datiSalvati.style.display = 'block';
+        ultimoSalvataggioDom.textContent = `Ultimo salvataggio: ${formatDateTime(ultimoSalvataggio)}`;
+      } else {
+        datiSalvati.style.display = 'none';
+      }
+    }
+    
+    // Funzione per aggiornare la lista delle letture salvate
+    function aggiornaLettureStorico() {
+      const lettureStoricoDom = document.getElementById('lettureStorico');
+      const lettureStoricoCnt = document.getElementById('lettureStoricoCnt');
+      
+      if (lettureStorico.length === 0) {
+        lettureStoricoDom.style.display = 'none';
+        return;
+      }
+      
+      lettureStoricoDom.style.display = 'block';
+      lettureStoricoCnt.innerHTML = '';
+      
+      lettureStorico.forEach((lettura, index) => {
+        const card = document.createElement('div');
+        card.className = 'letture-row';
+        
+        let periodoText = 'Periodo non specificato';
+        if (lettura.dataInizio || lettura.dataFine) {
+          periodoText = `${formatDate(lettura.dataInizio) || '?'} - ${formatDate(lettura.dataFine) || '?'}`;
+        }
+        
+        const consumoApt1 = Math.max(0, (lettura.apt1.finale || 0) - (lettura.apt1.iniziale || 0));
+        const consumoApt2 = Math.max(0, (lettura.apt2.finale || 0) - (lettura.apt2.iniziale || 0));
+        const consumoApt3 = Math.max(0, (lettura.apt3.finale || 0) - (lettura.apt3.iniziale || 0));
+        
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <span class="date-badge">
+                <i class="fas fa-calendar-alt me-1"></i> ${periodoText}
+              </span>
+              <span class="ms-2 text-secondary small">
+                <i class="fas fa-clock me-1"></i> ${formatDateTime(lettura.dataSalvataggio)}
+              </span>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-outline-primary carica-btn me-2" data-index="${index}">
+                <i class="fas fa-upload me-1"></i> Carica
+              </button>
+              <button class="btn btn-sm btn-outline-danger elimina-btn" data-index="${index}">
+                <i class="fas fa-trash me-1"></i>
+              </button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-1"><strong>Appartamento 1:</strong></div>
+              <div>Iniziale: ${lettura.apt1.iniziale || 0} - Finale: ${lettura.apt1.finale || 0}</div>
+              <div>Consumo: ${consumoApt1}</div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-1"><strong>Appartamento 2:</strong></div>
+              <div>Iniziale: ${lettura.apt2.iniziale || 0} - Finale: ${lettura.apt2.finale || 0}</div>
+              <div>Consumo: ${consumoApt2}</div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-1"><strong>Appartamento 3:</strong></div>
+              <div>Iniziale: ${lettura.apt3.iniziale || 0} - Finale: ${lettura.apt3.finale || 0}</div>
+              <div>Consumo: ${consumoApt3}</div>
+            </div>
+          </div>
+        `;
+        
+        lettureStoricoCnt.appendChild(card);
+      });
+      
+      // Aggiungi event listeners per i pulsanti
+      document.querySelectorAll('.carica-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          caricaLetture(lettureStorico[index]);
+        });
+      });
+      
+      document.querySelectorAll('.elimina-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          if (confirm('Sei sicuro di voler eliminare questa lettura salvata?')) {
+            lettureStorico.splice(index, 1);
+            localStorage.setItem('lettureStorico', JSON.stringify(lettureStorico));
+            aggiornaLettureStorico();
+            
+            if (lettureStorico.length === 0) {
+              localStorage.removeItem('ultimoSalvataggio');
+              ultimoSalvataggio = null;
+              mostraUltimoSalvataggio();
+            }
+          }
+        });
+      });
     }
     
     // Funzione per calcolare i consumi di tutti gli appartamenti
@@ -773,6 +1170,7 @@
       
       // Salvo nella cronologia
       const nuovaRipartizione = {
+        id: generateUniqueId(),
         data: new Date().toISOString(),
         periodo: {
           inizio: dataInizio,
@@ -784,13 +1182,37 @@
           apt3: consumoApt3,
           totale: consumoTotale
         },
+        letture: {
+          apt1: {
+            iniziale: parseFloat(document.getElementById('apt1mese1').value) || 0,
+            finale: parseFloat(document.getElementById('apt1mese2').value) || 0
+          },
+          apt2: {
+            iniziale: parseFloat(document.getElementById('apt2mese1').value) || 0,
+            finale: parseFloat(document.getElementById('apt2mese2').value) || 0
+          },
+          apt3: {
+            iniziale: parseFloat(document.getElementById('apt3mese1').value) || 0,
+            finale: parseFloat(document.getElementById('apt3mese2').value) || 0
+          }
+        },
         importi: {
           apt1: importoApt1,
           apt2: importoApt2,
           apt3: importoApt3,
           totale: totaleBolletta
         },
-        componenti: componenti
+        componenti: componenti,
+        dettagli: {
+          kwhTotali: parseFloat(document.getElementById('kwhTotali').value) || 0,
+          spesaEnergia,
+          scontoOfferta,
+          spesaTrasporto,
+          oneriSistema,
+          altrePartite,
+          imposte,
+          iva
+        }
       };
       
       cronologia.unshift(nuovaRipartizione);
@@ -798,6 +1220,11 @@
       
       // Aggiorno la cronologia
       aggiornaStorico();
+      
+      // Sincronizza automaticamente se c'è un codice
+      if (codiceSincronizzazione) {
+        sincronizzaDati();
+      }
     }
     
     // Funzione per aggiornare la cronologia
@@ -827,7 +1254,10 @@
           <td class="text-center">${formatEuro(item.importi.apt2)}</td>
           <td class="text-center">${formatEuro(item.importi.apt3)}</td>
           <td class="text-center">
-            <button class="btn btn-sm btn-danger delete-btn" data-index="${index}">
+            <button class="btn btn-sm btn-outline-primary view-btn me-1" data-index="${index}" title="Visualizza">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger delete-btn" data-index="${index}" title="Elimina">
               <i class="fas fa-trash"></i>
             </button>
           </td>
@@ -835,7 +1265,15 @@
         cronologiaBody.appendChild(row);
       });
       
-      // Aggiungo event listener per i pulsanti di eliminazione
+      // Aggiungi event listener per i pulsanti di visualizzazione
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          visualizzaRipartizione(cronologia[index]);
+        });
+      });
+      
+      // Aggiungi event listener per i pulsanti di eliminazione
       document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', function() {
           const index = parseInt(this.getAttribute('data-index'));
@@ -844,12 +1282,58 @@
       });
     }
     
+    // Funzione per visualizzare una ripartizione
+    function visualizzaRipartizione(ripartizione) {
+      // Carica i dati della lettura
+      if (ripartizione.letture) {
+        document.getElementById('apt1mese1').value = ripartizione.letture.apt1.iniziale;
+        document.getElementById('apt1mese2').value = ripartizione.letture.apt1.finale;
+        document.getElementById('apt2mese1').value = ripartizione.letture.apt2.iniziale;
+        document.getElementById('apt2mese2').value = ripartizione.letture.apt2.finale;
+        document.getElementById('apt3mese1').value = ripartizione.letture.apt3.iniziale;
+        document.getElementById('apt3mese2').value = ripartizione.letture.apt3.finale;
+      }
+      
+      document.getElementById('dataPeriodoInizio').value = ripartizione.periodo.inizio || '';
+      document.getElementById('dataPeriodoFine').value = ripartizione.periodo.fine || '';
+      
+      // Aggiorna i consumi
+      aggiornaConsumoApt(1);
+      aggiornaConsumoApt(2);
+      aggiornaConsumoApt(3);
+      
+      // Carica i dati della bolletta
+      if (ripartizione.dettagli) {
+        document.getElementById('kwhTotali').value = ripartizione.dettagli.kwhTotali;
+        document.getElementById('totaleBolletta').value = ripartizione.importi.totale;
+        document.getElementById('spesaEnergia').value = ripartizione.dettagli.spesaEnergia;
+        document.getElementById('scontoOfferta').value = ripartizione.dettagli.scontoOfferta;
+        document.getElementById('spesaTrasporto').value = ripartizione.dettagli.spesaTrasporto;
+        document.getElementById('oneriSistema').value = ripartizione.dettagli.oneriSistema;
+        document.getElementById('altrePartite').value = ripartizione.dettagli.altrePartite;
+        document.getElementById('imposte').value = ripartizione.dettagli.imposte;
+        document.getElementById('iva').value = ripartizione.dettagli.iva;
+      }
+      
+      // Torna alla prima tab
+      const inputTab = document.getElementById('input-tab');
+      bootstrap.Tab.getInstance(inputTab) || new bootstrap.Tab(inputTab);
+      inputTab.click();
+      
+      alert("Ripartizione caricata. Puoi modificare i dati e ricalcolare.");
+    }
+    
     // Funzione per eliminare una ripartizione dalla cronologia
     function eliminaRipartizione(index) {
       if (confirm('Sei sicuro di voler eliminare questa ripartizione?')) {
         cronologia.splice(index, 1);
         localStorage.setItem('cronologia', JSON.stringify(cronologia));
         aggiornaStorico();
+        
+        // Sincronizza automaticamente se c'è un codice
+        if (codiceSincronizzazione) {
+          sincronizzaDati();
+        }
       }
     }
     
@@ -859,6 +1343,11 @@
         cronologia = [];
         localStorage.setItem('cronologia', JSON.stringify(cronologia));
         aggiornaStorico();
+        
+        // Sincronizza automaticamente se c'è un codice
+        if (codiceSincronizzazione) {
+          sincronizzaDati();
+        }
       }
     }
     
@@ -867,21 +1356,333 @@
       window.print();
     }
     
+    // Funzione per esportare i dati
+    function esportaDati() {
+      const dati = {
+        cronologia,
+        lettureStorico,
+        ultimoSalvataggio,
+        codiceSincronizzazione,
+        ultimaSincronizzazione,
+        versione: '1.0'
+      };
+      
+      const dataStr = JSON.stringify(dati, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bollette_condominio_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      
+      URL.revokeObjectURL(url);
+    }
+    
+    // Funzione per importare i dati
+    function importaDati() {
+      const file = document.getElementById('fileImporta').files[0];
+      const importSuccesso = document.getElementById('importSuccesso');
+      const importErrore = document.getElementById('importErrore');
+      const importErroreMessaggio = document.getElementById('importErroreMessaggio');
+      
+      importSuccesso.style.display = 'none';
+      importErrore.style.display = 'none';
+      
+      if (!file) {
+        importErrore.style.display = 'block';
+        importErroreMessaggio.textContent = 'Seleziona un file da importare';
+        return;
+      }
+      
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        try {
+          const dati = JSON.parse(e.target.result);
+          
+          // Verifica che sia un file valido
+          if (!dati.versione) {
+            throw new Error('Formato file non valido');
+          }
+          
+          // Importa i dati
+          if (dati.cronologia) cronologia = dati.cronologia;
+          if (dati.lettureStorico) lettureStorico = dati.lettureStorico;
+          ultimoSalvataggio = dati.ultimoSalvataggio || null;
+          codiceSincronizzazione = dati.codiceSincronizzazione || '';
+          ultimaSincronizzazione = dati.ultimaSincronizzazione || null;
+          
+          // Salva nel localStorage
+          localStorage.setItem('cronologia', JSON.stringify(cronologia));
+          localStorage.setItem('lettureStorico', JSON.stringify(lettureStorico));
+          if (ultimoSalvataggio) localStorage.setItem('ultimoSalvataggio', ultimoSalvataggio);
+          if (codiceSincronizzazione) localStorage.setItem('codiceSincronizzazione', codiceSincronizzazione);
+          if (ultimaSincronizzazione) localStorage.setItem('ultimaSincronizzazione', ultimaSincronizzazione);
+          
+          // Aggiorna UI
+          mostraUltimoSalvataggio();
+          aggiornaLettureStorico();
+          aggiornaStorico();
+          aggiornaStatoSincronizzazione();
+          
+          importSuccesso.style.display = 'block';
+          document.getElementById('fileImporta').value = '';
+          
+          // Aggiorna il campo del codice
+          document.getElementById('codiceSincronizzazione').value = codiceSincronizzazione;
+          
+        } catch (error) {
+          importErrore.style.display = 'block';
+          importErroreMessaggio.textContent = 'Errore durante l\'importazione: ' + error.message;
+        }
+      };
+      
+      reader.readAsText(file);
+    }
+    
+    // Funzione per generare un codice di sincronizzazione
+    function generaCodice() {
+      const randomId = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      
+      document.getElementById('codiceSincronizzazione').value = randomId;
+    }
+    
+    // Funzione per sincronizzare i dati
+    function sincronizzaDati() {
+      // Ottieni il codice di sincronizzazione
+      let codice = document.getElementById('codiceSincronizzazione').value.trim();
+      
+      // Se non c'è un codice e non c'è uno salvato, non fare nulla
+      if (!codice && !codiceSincronizzazione) {
+        alert('Inserisci un codice di sincronizzazione');
+        return;
+      }
+      
+      // Se c'è un codice nel campo, usalo e salvalo
+      if (codice && codice !== codiceSincronizzazione) {
+        codiceSincronizzazione = codice;
+        localStorage.setItem('codiceSincronizzazione', codiceSincronizzazione);
+      } else if (!codice && codiceSincronizzazione) {
+        // Se non c'è un codice nel campo ma ce n'è uno salvato, usa quello
+        codice = codiceSincronizzazione;
+        document.getElementById('codiceSincronizzazione').value = codiceSincronizzazione;
+      }
+      
+      // In un'applicazione reale, qui ci sarebbe una chiamata API a un server
+      // Per simulare una sincronizzazione con un database cloud, usiamo il localStorage
+      
+      // Prepara i dati da sincronizzare
+      const datiDaSincronizzare = {
+        cronologia,
+        lettureStorico,
+        ultimoSalvataggio,
+        ultimoAggiornamento: new Date().toISOString()
+      };
+      
+      // Salva i dati nel cloud simulato
+      localStorage.setItem(DB_CLOUD_KEY + codice, JSON.stringify(datiDaSincronizzare));
+      
+      // Aggiorna la data di ultima sincronizzazione
+      ultimaSincronizzazione = new Date().toISOString();
+      localStorage.setItem('ultimaSincronizzazione', ultimaSincronizzazione);
+      
+      // Aggiorna lo stato di sincronizzazione
+      aggiornaStatoSincronizzazione();
+      
+      alert('Dati sincronizzati con successo!');
+    }
+    
+    // Funzione per caricare i dati dal cloud
+    function caricaDatiDaCloud() {
+      const codice = codiceSincronizzazione;
+      
+      if (!codice) {
+        alert('Nessun codice di sincronizzazione disponibile');
+        return;
+      }
+      
+      // Recupera i dati dal cloud simulato
+      const datiCloudStr = localStorage.getItem(DB_CLOUD_KEY + codice);
+      
+      if (!datiCloudStr) {
+        alert('Nessun dato trovato per questo codice di sincronizzazione');
+        return;
+      }
+      
+      try {
+        const datiCloud = JSON.parse(datiCloudStr);
+        
+        // Verifica se i dati cloud sono più recenti
+        if (datiCloud.ultimoAggiornamento && (!ultimaSincronizzazione || 
+            new Date(datiCloud.ultimoAggiornamento) > new Date(ultimaSincronizzazione))) {
+          
+          // Importa i dati dal cloud
+          if (datiCloud.cronologia) cronologia = datiCloud.cronologia;
+          if (datiCloud.lettureStorico) lettureStorico = datiCloud.lettureStorico;
+          ultimoSalvataggio = datiCloud.ultimoSalvataggio || null;
+          
+          // Salva nel localStorage
+          localStorage.setItem('cronologia', JSON.stringify(cronologia));
+          localStorage.setItem('lettureStorico', JSON.stringify(lettureStorico));
+          if (ultimoSalvataggio) localStorage.setItem('ultimoSalvataggio', ultimoSalvataggio);
+          
+          // Aggiorna UI
+          mostraUltimoSalvataggio();
+          aggiornaLettureStorico();
+          aggiornaStorico();
+          
+          // Aggiorna la data di ultima sincronizzazione
+          ultimaSincronizzazione = new Date().toISOString();
+          localStorage.setItem('ultimaSincronizzazione', ultimaSincronizzazione);
+          
+          // Aggiorna lo stato di sincronizzazione
+          aggiornaStatoSincronizzazione();
+          
+          alert('Dati caricati dal cloud con successo!');
+        } else {
+          alert('I tuoi dati sono già aggiornati.');
+        }
+      } catch (error) {
+        alert('Errore durante il caricamento dei dati: ' + error.message);
+      }
+    }
+    
+    // Funzione per aggiornare lo stato di sincronizzazione
+    function aggiornaStatoSincronizzazione() {
+      const syncIcon = document.getElementById('syncIcon');
+      const syncText = document.getElementById('syncText');
+      const syncStatus = document.getElementById('syncStatus');
+      
+      if (!codiceSincronizzazione) {
+        syncIcon.style.color = '#dc3545'; // rosso
+        syncText.textContent = 'Non sincronizzato';
+        syncStatus.textContent = 'Non sincronizzato';
+        return;
+      }
+      
+      if (ultimaSincronizzazione) {
+        const dataUltimaSinc = new Date(ultimaSincronizzazione);
+        const minutiTrascorsi = Math.floor((new Date() - dataUltimaSinc) / (1000 * 60));
+        
+        if (minutiTrascorsi < 5) {
+          syncIcon.style.color = '#28a745'; // verde
+          syncText.textContent = 'Sincronizzato';
+          syncStatus.textContent = `Sincronizzato ${minutiTrascorsi} min fa`;
+        } else {
+          syncIcon.style.color = '#ffc107'; // giallo
+          syncText.textContent = 'Sincronizzazione obsoleta';
+          syncStatus.textContent = `Ultima sincronizzazione: ${formatDateTime(ultimaSincronizzazione)}`;
+        }
+      } else {
+        syncIcon.style.color = '#ffc107'; // giallo
+        syncText.textContent = 'Mai sincronizzato';
+        syncStatus.textContent = 'Sincronizzazione necessaria';
+      }
+    }
+    
+    // Funzione per svuotare le letture salvate
+    function svuotaLetture() {
+      if (confirm('Sei sicuro di voler eliminare tutte le letture salvate?')) {
+        lettureStorico = [];
+        localStorage.setItem('lettureStorico', JSON.stringify(lettureStorico));
+        localStorage.removeItem('ultimoSalvataggio');
+        ultimoSalvataggio = null;
+        
+        mostraUltimoSalvataggio();
+        aggiornaLettureStorico();
+        
+        alert('Letture salvate eliminate con successo');
+        
+        // Sincronizza automaticamente se c'è un codice
+        if (codiceSincronizzazione) {
+          sincronizzaDati();
+        }
+      }
+    }
+    
+    // Funzione per resettare completamente l'applicazione
+    function resetTutto() {
+      if (confirm('Sei sicuro di voler eliminare TUTTI i dati dell\'applicazione? Questa operazione non può essere annullata.')) {
+        if (confirm('Sei DAVVERO sicuro? Tutti i dati saranno persi definitivamente.')) {
+          // Elimina tutti i dati dal localStorage
+          localStorage.removeItem('cronologia');
+          localStorage.removeItem('lettureStorico');
+          localStorage.removeItem('ultimoSalvataggio');
+          localStorage.removeItem('codiceSincronizzazione');
+          localStorage.removeItem('ultimaSincronizzazione');
+          
+          // Resetta le variabili
+          cronologia = [];
+          lettureStorico = [];
+          ultimoSalvataggio = null;
+          codiceSincronizzazione = '';
+          ultimaSincronizzazione = null;
+          
+          // Aggiorna UI
+          mostraUltimoSalvataggio();
+          aggiornaLettureStorico();
+          aggiornaStorico();
+          aggiornaStatoSincronizzazione();
+          
+          // Resetta i campi
+          document.getElementById('codiceSincronizzazione').value = '';
+          
+          alert('Tutti i dati sono stati eliminati con successo');
+          
+          // Ricarica la pagina
+          window.location.reload();
+        }
+      }
+    }
+    
     // Event listeners
     document.getElementById('btnCalcolaConsumi').addEventListener('click', calcolaConsumi);
     document.getElementById('btnVerificaComponenti').addEventListener('click', verificaComponenti);
     document.getElementById('btnCalcola').addEventListener('click', calcola);
     document.getElementById('btnStampaRisultati').addEventListener('click', stampaRisultati);
     document.getElementById('btnSvuotaCronologia').addEventListener('click', svuotaCronologia);
+    document.getElementById('btnSalvaLetture').addEventListener('click', salvaLetture);
+    document.getElementById('btnCaricaDati').addEventListener('click', function() { caricaLetture(); });
+    document.getElementById('btnEsportaDati').addEventListener('click', esportaDati);
+    document.getElementById('btnEsportaImpostazioni').addEventListener('click', esportaDati);
+    document.getElementById('btnImportaDati').addEventListener('click', importaDati);
+    document.getElementById('btnGeneraCodice').addEventListener('click', generaCodice);
+    document.getElementById('btnSincronizza').addEventListener('click', sincronizzaDati);
+    document.getElementById('btnSincronizzaFlottante').addEventListener('click', function() {
+      if (codiceSincronizzazione) {
+        caricaDatiDaCloud();
+      } else {
+        const settingsTab = document.getElementById('settings-tab');
+        bootstrap.Tab.getInstance(settingsTab) || new bootstrap.Tab(settingsTab);
+        settingsTab.click();
+        alert('Configura prima un codice di sincronizzazione');
+      }
+    });
+    document.getElementById('btnSvuotaLetture').addEventListener('click', svuotaLetture);
+    document.getElementById('btnResetTutto').addEventListener('click', resetTutto);
     
     // Inizializzazione
     window.addEventListener('load', function() {
+      mostraUltimoSalvataggio();
+      aggiornaLettureStorico();
       aggiornaStorico();
+      aggiornaStatoSincronizzazione();
+      
+      // Compila il campo del codice di sincronizzazione
+      document.getElementById('codiceSincronizzazione').value = codiceSincronizzazione;
       
       // Mostra i risultati se ci sono
       if (cronologia.length > 0) {
         document.getElementById('noResults').style.display = 'none';
         document.getElementById('risultatoContainer').style.display = 'block';
+      }
+      
+      // Carica automaticamente dal cloud se c'è un codice di sincronizzazione
+      if (codiceSincronizzazione) {
+        caricaDatiDaCloud();
       }
     });
   </script>
