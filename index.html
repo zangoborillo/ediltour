@@ -1096,21 +1096,75 @@
       const percentualeApt2 = consumoApt2 / consumoTotale;
       const percentualeApt3 = consumoApt3 / consumoTotale;
       
-      // Calcolo gli importi per appartamento
-      const importoApt1 = totaleBolletta * percentualeApt1;
-      const importoApt2 = totaleBolletta * percentualeApt2;
-      const importoApt3 = totaleBolletta * percentualeApt3;
+      // Numero di appartamenti
+      const numeroAppartamenti = 3;
       
-      // Calcolo gli importi per componente e per appartamento
+      // Componenti con ripartizioni diverse
       const componenti = [
-        { nome: 'Spesa per la Materia Energia', valore: spesaEnergia },
-        { nome: 'Sconto Offerta', valore: -scontoOfferta },
-        { nome: 'Spesa per il Trasporto', valore: spesaTrasporto },
-        { nome: 'Oneri di Sistema', valore: oneriSistema },
-        { nome: 'Altre Partite', valore: altrePartite },
-        { nome: 'Imposte', valore: imposte },
-        { nome: 'IVA', valore: iva }
+        // Componente ripartita in base ai consumi
+        { 
+          nome: 'Spesa per la Materia Energia', 
+          valore: spesaEnergia,
+          tipo: 'consumo',
+          apt1: spesaEnergia * percentualeApt1,
+          apt2: spesaEnergia * percentualeApt2,
+          apt3: spesaEnergia * percentualeApt3
+        },
+        // Componenti ripartite equamente tra appartamenti
+        { 
+          nome: 'Sconto Offerta', 
+          valore: -scontoOfferta,
+          tipo: 'equo',
+          apt1: -scontoOfferta / numeroAppartamenti,
+          apt2: -scontoOfferta / numeroAppartamenti,
+          apt3: -scontoOfferta / numeroAppartamenti
+        },
+        { 
+          nome: 'Spesa per il Trasporto', 
+          valore: spesaTrasporto,
+          tipo: 'equo',
+          apt1: spesaTrasporto / numeroAppartamenti,
+          apt2: spesaTrasporto / numeroAppartamenti,
+          apt3: spesaTrasporto / numeroAppartamenti
+        },
+        { 
+          nome: 'Oneri di Sistema', 
+          valore: oneriSistema,
+          tipo: 'equo',
+          apt1: oneriSistema / numeroAppartamenti,
+          apt2: oneriSistema / numeroAppartamenti,
+          apt3: oneriSistema / numeroAppartamenti
+        },
+        { 
+          nome: 'Altre Partite', 
+          valore: altrePartite,
+          tipo: 'equo',
+          apt1: altrePartite / numeroAppartamenti,
+          apt2: altrePartite / numeroAppartamenti,
+          apt3: altrePartite / numeroAppartamenti
+        },
+        { 
+          nome: 'Imposte', 
+          valore: imposte,
+          tipo: 'equo',
+          apt1: imposte / numeroAppartamenti,
+          apt2: imposte / numeroAppartamenti,
+          apt3: imposte / numeroAppartamenti
+        },
+        { 
+          nome: 'IVA', 
+          valore: iva,
+          tipo: 'equo',
+          apt1: iva / numeroAppartamenti,
+          apt2: iva / numeroAppartamenti,
+          apt3: iva / numeroAppartamenti
+        }
       ];
+      
+      // Calcolo il totale per ogni appartamento
+      const importoApt1 = componenti.reduce((sum, comp) => sum + comp.apt1, 0);
+      const importoApt2 = componenti.reduce((sum, comp) => sum + comp.apt2, 0);
+      const importoApt3 = componenti.reduce((sum, comp) => sum + comp.apt3, 0);
       
       // Preparo i dati per la visualizzazione dei risultati
       const dataInizio = document.getElementById('dataPeriodoInizio').value;
@@ -1138,23 +1192,25 @@
       dettaglioComponenti.innerHTML = '';
       
       componenti.forEach(comp => {
-        const compApt1 = comp.valore * percentualeApt1;
-        const compApt2 = comp.valore * percentualeApt2;
-        const compApt3 = comp.valore * percentualeApt3;
-        
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${comp.nome}</td>
+          <td>
+            ${comp.nome}
+            <small class="d-block text-muted">
+              ${comp.tipo === 'consumo' ? 'Ripartito in base ai consumi' : 'Ripartito in parti uguali'}
+            </small>
+          </td>
           <td class="text-center">${formatEuro(comp.valore)}</td>
-          <td class="text-center">${formatEuro(compApt1)}</td>
-          <td class="text-center">${formatEuro(compApt2)}</td>
-          <td class="text-center">${formatEuro(compApt3)}</td>
+          <td class="text-center">${formatEuro(comp.apt1)}</td>
+          <td class="text-center">${formatEuro(comp.apt2)}</td>
+          <td class="text-center">${formatEuro(comp.apt3)}</td>
         `;
         dettaglioComponenti.appendChild(row);
       });
       
       // Aggiorno il totale complessivo
-      document.getElementById('totaleComplessivo').textContent = formatEuro(totaleBolletta);
+      const totaleCalcolato = importoApt1 + importoApt2 + importoApt3;
+      document.getElementById('totaleComplessivo').textContent = formatEuro(totaleCalcolato);
       document.getElementById('totaleApt1').textContent = formatEuro(importoApt1);
       document.getElementById('totaleApt2').textContent = formatEuro(importoApt2);
       document.getElementById('totaleApt3').textContent = formatEuro(importoApt3);
